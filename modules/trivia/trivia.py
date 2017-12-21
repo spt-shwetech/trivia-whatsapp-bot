@@ -85,8 +85,11 @@ def top_up_group(message):
         top_up_group_data = top_up_group_post.json()
 
         if 'error' in top_up_group_data:
-            top_up_group_data['error']['response']
-            print(top_up_group_data['error']['response'])
+            mac.send_message(top_up_group_data['error']['response'], message.conversation)
+            return
+
+        if 'success' in top_up_group_data:
+            mac.send_message(top_up_group_data['success']['response'], message.conversation)
             return 
 
 """
