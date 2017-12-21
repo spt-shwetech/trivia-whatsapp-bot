@@ -101,12 +101,13 @@ def create_group(message):
     wa_ph_number    = message.who.split("@")[0]
     params          = message.predicate.split(" ")
     wa_group_name   = ' '.join(params[:-1])
-    credit_groups   = params[-1]
+
     if not wa_group_name:
-        mac.send_message(helper.INVALID_MESSAGE, message.conversation)
-        return
-    if not credit_groups :
-        credit_groups = null
+        wa_group_name   = params[0]
+        credit_groups = 'null'
+    else :
+        credit_groups = params[-1]
+
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_groups': credit_groups }
     create_group_post = requests.post(API_TOP_UP_GROUP, data=payload )
@@ -136,6 +137,11 @@ ACCESS  : AGENT
 def create_sessions(message):
     wa_ph_number    = message.who.split("@")[0]
     params          = message.predicate.split(" ")
+
+    if len(params) < 3 :
+        mac.send_message(helper.INVALID_MESSAGE, message.conversation)
+        return
+
     wa_group_name   = ' '.join(params[:-2])
     credit_member   = params[-2]
     duration        = params[-1]
@@ -143,8 +149,10 @@ def create_sessions(message):
     if not wa_group_name:
         mac.send_message(helper.INVALID_MESSAGE, message.conversation)
         return
+
     if not duration :
-        duration = null
+        duration = "null"
+
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_member': credit_member, 'day_duration' : duration }
     create_sessions_post = requests.post(API_CREATE_SESSIONS, data=payload )
@@ -335,14 +343,15 @@ def end_game(message):
 
     if 'success' in end_game_data:
         player_lists = end_game_data['success']['response']
+        wa_group_id = end_game_data['success']['value']+"@g.us"
         player_stakes_rows= [["phone_number", "stakes", "profit"]]
         for player in player_lists:
             player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
             winner_stake_img = player["name_list_stakes"]
         table = texttable.Texttable()
         table.add_rows(player_stakes_rows)
-        mac.send_message(table.draw(), message.conversation)
-        send_image(message.conversation,winner_stake_img)
+        mac.send_message(table.draw(), wa_group_id)
+        send_image(wa_group_id,winner_stake_img)
         return   
 
 def send_image(wa_group_id,animal):
