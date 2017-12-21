@@ -147,6 +147,7 @@ def create_sessions(message):
     create_sessions_post = requests.post(API_CREATE_SESSIONS, data=payload )
     create_sessions_data = create_sessions_post.json()
 
+
     if 'error' in create_sessions_data:
         mac.send_message(create_sessions_data['error']['response'], message.conversation)
         return
@@ -175,28 +176,26 @@ def member_registration(message):
 
 """
 Name    : Create Game
-CMD     : #ctgame [space] group_name [space] rtp_game
+CMD     : #ctgame [space] group_name [space] credit_groups
 ACCESS  : AGENT
 """
 def create_game(message):
     wa_ph_number    = message.who.split("@")[0]
     params          = message.predicate.split(" ")
     wa_group_name   = ' '.join(params[:-1])
-    rtp_game        = params[-1]
-    print(wa_group_name)
+    credit_groups   = params[-1]
     if not wa_group_name:
         mac.send_message(helper.INVALID_MESSAGE, message.conversation)
         return
 
-    payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'rtp_game': rtp_game }
-    print(payload)
+    payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_groups': credit_groups }
     create_game_post = requests.post(API_TOP_UP_GROUP, data=payload )
     create_game_data = create_game_post.json()
     #ask you must enter credit message
 
     #Todo success
     if 'error' in create_game_data:
-        mac.send_message(create_group_data['error']['response'], message.conversation)
+        mac.send_message(create_game_data['error']['response'], message.conversation)
         return
 """
 Name    : Start Game
@@ -207,22 +206,24 @@ def start_game(message):
     wa_ph_number    = message.who.split("@")[0]
     params          = message.predicate.split(" ")
     wa_group_name   = ' '.join(params[:-1])
-    duration        = params[-1]
-    print(wa_group_name)
+
     if not wa_group_name:
-        mac.send_message(helper.INVALID_MESSAGE, message.conversation)
-        return
-    if not duration :
-        duration = null
+        wa_group_name   = params[0]
+        duration = 'null'
+    else :
+        duration = params[-1]
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'minutes_duration': duration }
-    print(payload)
     start_game_post = requests.post(API_START_GAME, data=payload )
     start_game_data = start_game_post.json()
-
+    print(start_game_data)
     #Todo success
     if 'error' in start_game_data:
-        mac.send_message(start_game_data['error']['response'], message.conversation)
+        mac.send_message(start_game_data['error']['response'], message.who)
+        return
+
+    if 'success' in start_game_data:
+        mac.send_message(start_game_data['success']['response'], message.who)
         return
 
 """
@@ -243,8 +244,13 @@ def user_place_a_stake(message):
 
         #Todo success
         if 'error' in user_place_a_stake_data:
-            mac.send_message(user_place_a_stake_data['error']['response'], message.conversation)
+            mac.send_message(user_place_a_stake_data['error']['response'], message.who)
+            return    
+
+        if 'success' in user_place_a_stake_data:
+            mac.send_message(user_place_a_stake_data['success']['response'], message.conversation)
             return        
+  
 
 """
 Name    : Check All Stakes In Game
@@ -256,13 +262,22 @@ def check_all_stakes_in_game(message):
     wa_ph_number    = message.who.split("@")[0]
 
     payload = { "wa_group_id": wa_group_id, "wa_ph_number" : wa_ph_number}
-    check_all_stakes_in_game_post = requests.post(API_STAKES, data=payload )
+    check_all_stakes_in_game_post = requests.post(API_CHECK_STAKES_MEMBERS, data=payload )
     check_all_stakes_in_game_data = check_all_stakes_in_game_post.json()
 
-    #Todo success
     if 'error' in check_all_stakes_in_game_data:
         mac.send_message(check_all_stakes_in_game_data['error']['response'], message.conversation)
         return        
+
+    if 'success' in check_all_stakes_in_game_data:
+        player_lists = check_all_stakes_in_game_data['success']['response']['check_stakes_members']
+        player_stakes_rows= [["phone_number", "stakes", "value"]]
+        for player in player_lists:
+            player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["value_stakes"]])
+        table = texttable.Texttable()
+        table.add_rows(player_stakes_rows)
+        mac.send_message(table.draw(), message.conversation)
+        return   
 
 """
 Name    : Check All List Stakes
@@ -277,10 +292,25 @@ def check_all_list_stakes(message):
     check_all_list_stakes_post = requests.post(API_LIST_STAKES, data=payload )
     check_all_list_stakes_data = check_all_list_stakes_post.json()
 
+    print(check_all_list_stakes_data)
+
     #Todo success
     if 'error' in check_all_list_stakes_data:
         mac.send_message(check_all_list_stakes_data['error']['response'], message.conversation)
         return    
+
+    if 'success' in check_all_list_stakes_data:
+        # message = check_all_list_stakes_data['success']['response']
+        # mac.send_message(message, message.conversation)
+
+        player_lists = check_all_list_stakes_data['success']['response']
+        player_stakes_rows= [["Name Stakes"]]
+        for player in player_lists:
+            player_stakes_rows.append([player["name_list_stakes"]])
+        table = texttable.Texttable()
+        table.add_rows(player_stakes_rows)
+        mac.send_message(table.draw(), message.conversation)
+        return  
 
 """
 Name    : End Game
@@ -291,14 +321,26 @@ def end_game(message):
     wa_ph_number    = message.who.split("@")[0]
     wa_group_name   = message.predicate
     payload = { 'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
-    end_game_post = requests.post(API_END_SESSIONS, data=payload )
+    end_game_post = requests.post(API_END_GAME, data=payload )
     end_game_data = end_game_post.json()
     #error without having group
-
+    print(end_game_data)
     #Todo success
     if 'error' in end_game_data:
         mac.send_message(end_game_data['error']['response'], message.conversation)
         return        
+
+    if 'success' in end_game_data:
+        player_lists = end_game_data['success']['response']
+        player_stakes_rows= [["phone_number", "stakes", "profit"]]
+        for player in player_lists:
+            player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
+            winner_stake_img = player["name_list_stakes"]
+        table = texttable.Texttable()
+        table.add_rows(player_stakes_rows)
+        mac.send_message(table.draw(), message.conversation)
+        send_image(message.conversation,winner_stake_img)
+        return   
 
 def send_image(wa_group_id,animal):
     if animal != "":
