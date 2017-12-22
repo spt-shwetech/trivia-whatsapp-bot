@@ -35,7 +35,7 @@ API_CHECK_CREDIT_MEMBER     = 'http://{}/api/check_credit_member'.format(BASE_IP
 
 @signals.command_received.connect
 def handle(message):
-    
+    print(message.command)
     if message.conversation != message.who :
         if message.command == "list":
             check_all_stakes_in_game(message)
@@ -74,7 +74,6 @@ def handle(message):
         else:
             if message.command:
                 help(message)
-    print(message.predicate)
 """
 Trivia Games Bot 
 """
