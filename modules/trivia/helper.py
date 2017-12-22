@@ -4,8 +4,9 @@ Long Messages
 """
 
 HELP_MESSAGE = u'''
-ℹ️ Type #stake [animal] [ammount] to stake
-You can set rat, ox, tiger, rabbit, dragon, snake, horse, goat, monkey, rooster, dog, pig
+ℹ️ Type #b [animal] [ammount] to stake
+You can set rt, ox, tg, rb, dr, sn, hr, gt, mk, ck, do, pg
+It means rat, ox, tiger, rabbit, dragon, snake, horse, goat, monkey, rooster, dog, pig
 '''
 
 HELP_MESSAGE_ROOM = u'''
