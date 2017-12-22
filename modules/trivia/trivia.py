@@ -122,7 +122,7 @@ def create_group(message):
 
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_groups': credit_groups }
-    create_group_post = requests.post(API_TOP_UP_GROUP, data=payload )
+    create_group_post = requests.post(API_CREATE_GROUP, data=payload )
     create_group_data = create_group_post.json()
 
     if 'error' in create_group_data:
