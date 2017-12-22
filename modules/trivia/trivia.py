@@ -193,24 +193,29 @@ def member_registration(message):
         mac.send_message(member_registration_data['error']['response'], message.who)
         return
 
-    if 'success' in member_registration_data:
-        mac.send_message(member_registration_data['success']['response'], message.conversation)
+    #changes
+    if 'successgroup' in member_registration_data:
+            mac.send_message(member_registration_data['successgroup']['response'], message.conversation)   
+
+    if 'successprivate' in member_registration_data:
+        mac.send_message(member_registration_data['successprivate']['response'], message.who)
+        return  
 
 """
 Name    : Create Game
-CMD     : #game [space] group_name [space] rtp_game
+CMD     : #game [space] group_name
 ACCESS  : AGENT
 """
 def create_game(message):
     wa_ph_number    = message.who.split("@")[0]
     params          = message.predicate.split(" ")
-    wa_group_name   = ' '.join(params[:-1])
-    rtp_game        = params[-1]
+    wa_group_name   = message.predicate
+
     if not wa_group_name:
         mac.send_message(helper.INVALID_MESSAGE, message.conversation)
         return
 
-    payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'rtp_game': rtp_game }
+    payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number }
     create_game_post = requests.post(API_CREATE_GAME, data=payload )
     create_game_data = create_game_post.json()
  
@@ -245,17 +250,10 @@ def start_game(message):
         mac.send_message(start_game_data['error']['response'], message.who)
         return
 
-    #Response Changes
-    # if 'success' in start_game_data:
-    #     mac.send_message(start_game_data['success']['response'], message.who)
-    #     return
-
-    if 'successgroup' in start_game_data:
-            mac.send_message(start_game_data['successgroup']['response'], message.conversation)   
-
-    if 'successprivate' in start_game_data:
-        mac.send_message(start_game_data['successprivate']['response'], message.who)
-        return     
+    if 'success' in start_game_data:
+        mac.send_message(start_game_data['success']['response'], message.who)
+        return
+   
 
 """
 Name    : User Place A Stake
