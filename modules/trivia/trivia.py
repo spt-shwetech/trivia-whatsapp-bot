@@ -35,7 +35,7 @@ API_CHECK_CREDIT_MEMBER     = 'http://{}/api/check_credit_member'.format(BASE_IP
 
 @signals.command_received.connect
 def handle(message):
-    print(message.command)
+    print(message.command+""+message.predicate)
     if message.conversation != message.who :
         if message.command == "list":
             check_all_stakes_in_game(message)
@@ -176,30 +176,7 @@ def create_sessions(message):
 
     if 'success' in create_sessions_data:
         mac.send_message(create_sessions_data['success']['response'], message.conversation)
-"""
-Name    : Member Registration 
-CMD     : #reg
-ACCESS  : Member
-"""
-def member_registration(message):
-    wa_group_id     = message.conversation.split("@")[0]
-    wa_ph_number    = message.who.split("@")[0]
 
-    payload = { "wa_group_id": wa_group_id, "wa_ph_number": wa_ph_number}
-    member_registration_post = requests.post(API_REGISTER_MEMBERS, data=payload )
-    member_registration_data = member_registration_post.json()
-
-    if 'error' in member_registration_data:
-        mac.send_message(member_registration_data['error']['response'], message.who)
-        return
-
-    #changes
-    if 'successgroup' in member_registration_data:
-            mac.send_message(member_registration_data['successgroup']['response'], message.conversation)   
-
-    if 'successprivate' in member_registration_data:
-        mac.send_message(member_registration_data['successprivate']['response'], message.who)
-        return  
 
 """
 Name    : Create Game
@@ -220,12 +197,13 @@ def create_game(message):
     create_game_data = create_game_post.json()
  
     if 'error' in create_game_data:
-        mac.send_message(create_game_data['error']['response'], message.conversation)
+        mac.send_message(create_game_data['error']['response'], message.who)
         return
 
     if 'success' in create_game_data:
-        mac.send_message(create_game_data['success']['response'], message.conversation)
-        return
+            mac.send_message(create_game_data['success']['response'], message.who)   
+
+
 """
 Name    : Start Game
 CMD     : #start [space] group_name [space] duration (in minutes )
@@ -250,11 +228,36 @@ def start_game(message):
         mac.send_message(start_game_data['error']['response'], message.who)
         return
 
-    if 'success' in start_game_data:
-        mac.send_message(start_game_data['success']['response'], message.who)
-        return
-   
+    if 'successgroup' in start_game_data:
+            mac.send_message(start_game_data['successgroup']['response'], start_game_data['successgroup']['value']+"@g.us")   
 
+    if 'successprivate' in start_game_data:
+        mac.send_message(start_game_data['successprivate']['response'], message.who)
+        return     
+"""
+Name    : Member Registration 
+CMD     : #reg
+ACCESS  : Member
+"""
+def member_registration(message):
+    wa_group_id     = message.conversation.split("@")[0]
+    wa_ph_number    = message.who.split("@")[0]
+
+    payload = { "wa_group_id": wa_group_id, "wa_ph_number": wa_ph_number}
+    member_registration_post = requests.post(API_REGISTER_MEMBERS, data=payload )
+    member_registration_data = member_registration_post.json()
+
+    if 'error' in member_registration_data:
+        mac.send_message(member_registration_data['error']['response'], message.who)
+        return
+
+    #changes
+    if 'successgroup' in member_registration_data:
+            mac.send_message(member_registration_data['successgroup']['response'], message.conversation)   
+
+    if 'successprivate' in member_registration_data:
+        mac.send_message(member_registration_data['successprivate']['response'], message.who)
+        return  
 """
 Name    : User Place A Stake
 CMD     : #b [space] list_stakes_name [space] stake_amount
@@ -384,11 +387,16 @@ def end_game(message):
         player_stakes_rows= [["phone_number", "stakes", "profit"]]
         for player in player_lists:
             player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
-            winner_stake_img = player["name_list_stakes"]
+            winner_stake_img = player["command_list_stakes"]
         table = texttable.Texttable()
         table.add_rows(player_stakes_rows)
+        mac.send_message("Game is finish.", wa_group_id)
+        mac.send_message("Here's the list of winner:",wa_group_id)
         mac.send_message(table.draw(), wa_group_id)
-        send_image(wa_group_id,winner_stake_img)
+        try:
+            send_image(wa_group_id,winner_stake_img)
+        except NameError:
+            print('Not found')
         return  
 
 """
@@ -439,7 +447,7 @@ Helper and other command
 def send_image(wa_group_id,animal):
     if animal != "":
         script_dir = sys.path[0]
-        img_file = os.path.join(script_dir, 'modules/trivia/img/{}.jpg'.format(animal))
+        img_file = os.path.join(script_dir, 'modules/trivia/img/{}.png'.format(animal))
         mac.send_image(img_file, wa_group_id) 
 
 def check_group(message, callback=None):

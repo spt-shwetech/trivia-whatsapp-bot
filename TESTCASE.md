@@ -15,7 +15,7 @@ group
 #listbet
 
 private
-#game [space] group_name [space] credit_groups
+#game  [space] group_name
 #start [space] group_name [space] duration (in minutes )
 
 group
