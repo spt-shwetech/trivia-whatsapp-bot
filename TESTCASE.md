@@ -1,19 +1,29 @@
-Test Case
+Normal test case 
 
-For Host
-#create groupname
-#init_balance 100 groupname
-#game 80 72 groupname
-#start groupname
+host ph  = 959404121674
+check  group name exist or not in dashboard
 
-For Member and in group
+private
+
+#credit [space] group_name [space] credit_groups
+#group  [space] group_name [space] credit_group
+#session [space] group_name [space] credit_member [space] duration (in day)
+
+group 
+
 #register
-#stake tiger 100
-#check
+#listbet
 
-For Host
-#end groupname
-#yes
+private
+#game [space] group_name [space] credit_groups
+#start [space] group_name [space] duration (in minutes )
+
+group
+#b [space] list_stakes_name [space] stake_amount
+#list
+
+private
+#end [space] group_name
 
 
 #phoneno and password

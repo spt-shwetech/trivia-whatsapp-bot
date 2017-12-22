@@ -6,8 +6,8 @@ import re
 import sys, os
 from datetime import datetime
 
-#BASE_IP = 'trivia.shweapi.com'
-BASE_IP = 'localhost/trivia'
+BASE_IP = 'trivia.shweapi.com'
+#BASE_IP = 'localhost/trivia'
 ANIMALS = ['rat', 'ox', 'tiger', 'rabbit', 'dragon', 'snake', 'horse', 'goat', 'monkey', 'rooster', 'dog', 'pig']
 #ANIMALS = ['ji','gou','zhu','shu','niu','hu','tu','long','she','ma','yang','hou']
 ALLANIMALS = set(ANIMALS)
