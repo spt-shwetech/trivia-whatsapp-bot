@@ -28,6 +28,9 @@ API_TOP_UP_AGENT            = 'http://{}/api/top_up_agent'.format(BASE_IP)
 API_TOP_UP_GROUP            = 'http://{}/api/top_up_group'.format(BASE_IP)
 API_LIST_STAKES             = 'http://{}/api/list_stakes'.format(BASE_IP)
 API_END_SESSIONS            = 'http://{}/api/end_sessions'.format(BASE_IP)
+API_HELP                    = 'http://{}/api/help'.format(BASE_IP)
+API_AHELP                   = 'http://{}/api/ahelp'.format(BASE_IP)
+API_CHECK_CREDIT_MEMBER     = 'http://{}/api/check_credit_member'.format(BASE_IP)
 
 
 @signals.command_received.connect
@@ -42,11 +45,15 @@ def handle(message):
             member_registration(message)
         elif message.command == "b":
             user_place_a_stake(message)
-        elif message.command == "ahelp":
-            help(message, True)
+        # elif message.command == "ahelp":
+        #     ahelp(message)
+        elif message.command == "help":
+            help(message)
+        elif message.command == "bal":
+            check_credit_member(message)
         else:
             if message.command:
-                help(message, True)
+                help(message)
     else:
         if message.command == "tpagent":
             print(message.command)
@@ -63,10 +70,10 @@ def handle(message):
         elif message.command == "end":
             end_game(message)
         elif message.command == "ahelp":
-            help(message, True)
+            ahelp(message)
         else:
             if message.command:
-                help(message, True)
+                help(message)
 
 """
 Trivia Games Bot 
@@ -232,10 +239,8 @@ def start_game(message):
         duration = params[-1]
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'minutes_duration': duration }
-    print(payload)
     start_game_post = requests.post(API_START_GAME, data=payload )
     start_game_data = start_game_post.json()
-    print(start_game_data)
 
     if 'error' in start_game_data:
         mac.send_message(start_game_data['error']['response'], message.who)
@@ -285,6 +290,7 @@ def check_all_stakes_in_game(message):
     check_all_stakes_in_game_post = requests.post(API_CHECK_STAKES_MEMBERS, data=payload )
     check_all_stakes_in_game_data = check_all_stakes_in_game_post.json()
 
+    print(check_all_stakes_in_game_data)
     if 'error' in check_all_stakes_in_game_data:
         mac.send_message(check_all_stakes_in_game_data['error']['response'], message.conversation)
         return        
@@ -301,7 +307,7 @@ def check_all_stakes_in_game(message):
 
 """
 Name    : Check All List Stakes
-CMD     : #ltstakes
+CMD     : #listbet
 ACCESS  : ALL
 """
 def check_all_list_stakes(message):
@@ -311,7 +317,7 @@ def check_all_list_stakes(message):
     payload = { "wa_group_id": wa_group_id, "wa_ph_number" : wa_ph_number}
     check_all_list_stakes_post = requests.post(API_LIST_STAKES, data=payload )
     check_all_list_stakes_data = check_all_list_stakes_post.json()
-
+    print(check_all_list_stakes_data)
 
     if 'error' in check_all_list_stakes_data:
         mac.send_message(check_all_list_stakes_data['error']['response'], message.conversation)
@@ -328,6 +334,32 @@ def check_all_list_stakes(message):
         return  
 
 """
+Name    : Check All List Stakes
+CMD     : #bal
+ACCESS  : ALL
+"""
+def check_credit_member(message):
+    wa_group_id     = message.conversation.split("@")[0]
+    wa_ph_number    = message.who.split("@")[0]
+
+    payload = { "wa_group_id": wa_group_id, "wa_ph_number" : wa_ph_number}
+    check_credit_member_post = requests.post(API_CHECK_CREDIT_MEMBER, data=payload )
+    check_credit_member_data = check_credit_member_post.json()
+
+    if 'error' in check_credit_member_data:
+        mac.send_message(check_credit_member_data['error']['response'], message.conversation)
+        return        
+
+    if 'success' in check_credit_member_data:
+        player_lists = check_credit_member_data['success']['response']
+        check_credit_member_rows= [["Name Groups","Start Sessions","Credit Register","End Sessions"]]
+        for player in player_lists:
+            check_credit_member_rows.append([player["name_groups"],player["start_sessions"],str(player["credit_register_members"]),player["end_sessions"]])
+        table = texttable.Texttable()
+        table.add_rows(check_credit_member_rows)
+        mac.send_message(table.draw(), message.who)
+        return      
+"""
 Name    : End Game
 CMD     : #end [space] group_name
 ACCESS  : AGENT
@@ -338,8 +370,7 @@ def end_game(message):
     payload = { 'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
     end_game_post = requests.post(API_END_GAME, data=payload )
     end_game_data = end_game_post.json()
-    #error without having group
-    print(end_game_data)
+
     if 'error' in end_game_data:
         mac.send_message(end_game_data['error']['response'], message.conversation)
         return        
@@ -355,18 +386,58 @@ def end_game(message):
         table.add_rows(player_stakes_rows)
         mac.send_message(table.draw(), wa_group_id)
         send_image(wa_group_id,winner_stake_img)
+        return  
+
+"""
+Name    : Help
+CMD     : #help
+ACCESS  : GROUP
+"""
+def help(message):
+    wa_group_id     = message.conversation.split("@")[0]
+
+    payload = { "wa_group_id": wa_group_id }
+    help_post = requests.post(API_HELP, data=payload )
+    help_data = help_post.json()
+
+    if 'error' in help_data:
+        mac.send_message(help_data['error']['response'], message.conversation)
+        return        
+
+    if 'success' in help_data:
+        mac.send_message(help_data['success']['response'], message.conversation)
         return   
 
-def send_image(wa_group_id,animal):
-    if animal != "":
-        script_dir = sys.path[0]
-        img_file = os.path.join(script_dir, 'modules/trivia/img/{}.jpg'.format(animal))
-        mac.send_image(img_file, wa_group_id) 
+"""
+Name    : Agent Help
+CMD     : #ahelp
+ACCESS  : AGENT
+"""
+def ahelp(message):
+    wa_ph_number    = message.who.split("@")[0]
+
+    payload = { "wa_ph_number" : wa_ph_number}
+    ahelp_post = requests.post(API_AHELP, data=payload )
+    ahelp_data = ahelp_post.json()
+
+    if 'error' in ahelp_data:
+        mac.send_message(ahelp_data['error']['response'], message.conversation)
+        return        
+
+    if 'success' in ahelp_data:
+        mac.send_message(ahelp_data['success']['response'], message.conversation)
+        return   
+
 
 
 """
 Helper and other command
 """
+def send_image(wa_group_id,animal):
+    if animal != "":
+        script_dir = sys.path[0]
+        img_file = os.path.join(script_dir, 'modules/trivia/img/{}.jpg'.format(animal))
+        mac.send_image(img_file, wa_group_id) 
 
 def check_group(message, callback=None):
     """
@@ -391,24 +462,4 @@ def check_group(message, callback=None):
 def ambigous(text, message):
     ambigous_text = 'Your message seem ambigous. here is your error: \n {}'.format(text)
     mac.send_message(ambigous_text, message.conversation)
-
-
-def help(message, isLost=False):
-    def callback_check_group(isAdmin):
-        if isAdmin:
-            mac.send_message("Feeling lost ? Here is some command I understand", message.who)
-            # mac.send_message(helper.HELP_MESSAGE_ROOM, message.conversation)
-        else:
-            mac.send_message("Here is some command I understand", message.who)
-            mac.send_message(helper.HELP_MESSAGE, message.who)
-    if isLost:
-        mac.send_message("Hi, {} seems you getting lost".format(message.who_name), message.who)
-    # check wether sender == conversation
-    # if sender == conversation it means it's private chat
-    if message.who == message.conversation:
-        mac.send_message("Here is some command I understand", message.who)
-        mac.send_message(helper.HELP_MESSAGE, message.conversation )
-    else:
-        group_id = message.conversation.split("@")[0]
-        mac.get_group_info(message.conversation, message.who, callback=callback_check_group)
 
