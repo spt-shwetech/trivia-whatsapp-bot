@@ -74,7 +74,7 @@ def handle(message):
         else:
             if message.command:
                 help(message)
-
+    print(message.predicate)
 """
 Trivia Games Bot 
 """
@@ -124,8 +124,6 @@ def create_group(message):
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_group': credit_group }
     create_group_post = requests.post(API_CREATE_GROUP, data=payload )
     create_group_data = create_group_post.json()
-
-    print(create_group_data)
 
     if 'error' in create_group_data:
         mac.send_message(create_group_data['error']['response'], message.conversation)
@@ -292,7 +290,6 @@ def check_all_stakes_in_game(message):
     check_all_stakes_in_game_post = requests.post(API_CHECK_STAKES_MEMBERS, data=payload )
     check_all_stakes_in_game_data = check_all_stakes_in_game_post.json()
 
-    print(check_all_stakes_in_game_data)
     if 'error' in check_all_stakes_in_game_data:
         mac.send_message(check_all_stakes_in_game_data['error']['response'], message.conversation)
         return        
@@ -319,7 +316,6 @@ def check_all_list_stakes(message):
     payload = { "wa_group_id": wa_group_id, "wa_ph_number" : wa_ph_number}
     check_all_list_stakes_post = requests.post(API_LIST_STAKES, data=payload )
     check_all_list_stakes_data = check_all_list_stakes_post.json()
-    print(check_all_list_stakes_data)
 
     if 'error' in check_all_list_stakes_data:
         mac.send_message(check_all_list_stakes_data['error']['response'], message.conversation)
