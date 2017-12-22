@@ -245,9 +245,17 @@ def start_game(message):
         mac.send_message(start_game_data['error']['response'], message.who)
         return
 
-    if 'success' in start_game_data:
-        mac.send_message(start_game_data['success']['response'], message.who)
-        return
+    #Response Changes
+    # if 'success' in start_game_data:
+    #     mac.send_message(start_game_data['success']['response'], message.who)
+    #     return
+
+    if 'successgroup' in start_game_data:
+            mac.send_message(start_game_data['successgroup']['response'], message.conversation)   
+
+    if 'successprivate' in start_game_data:
+        mac.send_message(start_game_data['successprivate']['response'], message.who)
+        return     
 
 """
 Name    : User Place A Stake
