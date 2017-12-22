@@ -116,14 +116,16 @@ def create_group(message):
 
     if not wa_group_name:
         wa_group_name   = params[0]
-        credit_groups = 'null'
+        credit_group = 'null'
     else :
-        credit_groups = params[-1]
+        credit_group = params[-1]
 
 
-    payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_groups': credit_groups }
+    payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_group': credit_group }
     create_group_post = requests.post(API_CREATE_GROUP, data=payload )
     create_group_data = create_group_post.json()
+
+    print(create_group_data)
 
     if 'error' in create_group_data:
         mac.send_message(create_group_data['error']['response'], message.conversation)
