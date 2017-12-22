@@ -5,6 +5,7 @@ import texttable
 import re
 import sys, os
 from datetime import datetime
+import time
 
 BASE_IP = 'trivia.shweapi.com'
 #BASE_IP = 'localhost/trivia'
@@ -35,7 +36,7 @@ API_CHECK_CREDIT_MEMBER     = 'http://{}/api/check_credit_member'.format(BASE_IP
 
 @signals.command_received.connect
 def handle(message):
-    print(message.command+""+message.predicate)
+    print(message.command+" "+message.predicate)
     if message.conversation != message.who :
         if message.command == "list":
             check_all_stakes_in_game(message)
@@ -216,7 +217,7 @@ def start_game(message):
 
     if not wa_group_name:
         wa_group_name   = params[0]
-        duration = 'null'
+        duration = '10'
     else :
         duration = params[-1]
 
@@ -384,14 +385,15 @@ def end_game(message):
     if 'success' in end_game_data:
         player_lists = end_game_data['success']['response']
         wa_group_id = end_game_data['success']['value']+"@g.us"
+        mac.send_message("Game is finish.", wa_group_id)
+        mac.send_message("Here's the list of winner: ",wa_group_id)
+        time.sleep(5)
         player_stakes_rows= [["phone_number", "stakes", "profit"]]
         for player in player_lists:
             player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
             winner_stake_img = player["command_list_stakes"]
         table = texttable.Texttable()
         table.add_rows(player_stakes_rows)
-        mac.send_message("Game is finish.", wa_group_id)
-        mac.send_message("Here's the list of winner:",wa_group_id)
         mac.send_message(table.draw(), wa_group_id)
         try:
             send_image(wa_group_id,winner_stake_img)
