@@ -11,7 +11,7 @@ private
 
 group 
 
-#register
+#reg
 #listbet
 
 private

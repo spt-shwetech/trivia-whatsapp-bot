@@ -375,6 +375,8 @@ def end_game(message):
     wa_ph_number    = message.who.split("@")[0]
     wa_group_name   = message.predicate
     payload = { 'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
+    mac.send_message("Game will End in 10 seconds", wa_group_id)
+    time.sleep(10)
     end_game_post = requests.post(API_END_GAME, data=payload )
     end_game_data = end_game_post.json()
 
@@ -385,10 +387,10 @@ def end_game(message):
     if 'success' in end_game_data:
         player_lists = end_game_data['success']['response']
         wa_group_id = end_game_data['success']['value']+"@g.us"
-        mac.send_message("Game will End in 10 seconds")
-        time.sleep(10)
         mac.send_message("Game is finish.", wa_group_id)
         mac.send_message("Here's the list of winner: ",wa_group_id)
+        print(player_lists)
+        #if 'phone_number' in player_lists:
         player_stakes_rows= [["phone_number", "stakes", "profit"]]
         for player in player_lists:
             player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
@@ -396,6 +398,9 @@ def end_game(message):
         table = texttable.Texttable()
         table.add_rows(player_stakes_rows)
         mac.send_message(table.draw(), wa_group_id)
+        # else:
+        #     mac.send_message(player_lists, wa_group_id)
+
         try:
             send_image(wa_group_id,winner_stake_img)
         except NameError:
