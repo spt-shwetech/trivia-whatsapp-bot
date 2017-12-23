@@ -385,9 +385,10 @@ def end_game(message):
     if 'success' in end_game_data:
         player_lists = end_game_data['success']['response']
         wa_group_id = end_game_data['success']['value']+"@g.us"
+        mac.send_message("Game will End in 10 seconds")
+        time.sleep(10)
         mac.send_message("Game is finish.", wa_group_id)
         mac.send_message("Here's the list of winner: ",wa_group_id)
-        time.sleep(5)
         player_stakes_rows= [["phone_number", "stakes", "profit"]]
         for player in player_lists:
             player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
