@@ -5,7 +5,7 @@ import texttable
 import re
 import sys, os
 from datetime import datetime
-import time
+import time, threading
 
 BASE_IP = 'trivia.shweapi.com'
 #BASE_IP = 'localhost/trivia'
@@ -15,28 +15,31 @@ ALLANIMALS = set(ANIMALS)
 TEMP = {}
 
 #List API TRIVIA
-API_TOP_UP_GROUP            = 'http://{}/api/top_up_group'.format(BASE_IP)
-API_CREATE_GROUP            = 'http://{}/api/create_group'.format(BASE_IP)
-API_UPDATE_GROUP            = 'http://{}/api/update_group'.format(BASE_IP)
-API_CREATE_SESSIONS         = 'http://{}/api/create_sessions'.format(BASE_IP)
-API_REGISTER_MEMBERS        = 'http://{}/api/register_members'.format(BASE_IP)
-API_CREATE_GAME             = 'http://{}/api/create_game'.format(BASE_IP)
-API_START_GAME              = 'http://{}/api/start_game'.format(BASE_IP)
-API_END_GAME                = 'http://{}/api/end_game'.format(BASE_IP)
-API_STAKES                  = 'http://{}/api/stakes'.format(BASE_IP)
-API_CHECK_STAKES_MEMBERS    = 'http://{}/api/check_stakes_members'.format(BASE_IP)
-API_TOP_UP_AGENT            = 'http://{}/api/top_up_agent'.format(BASE_IP)
-API_TOP_UP_GROUP            = 'http://{}/api/top_up_group'.format(BASE_IP)
-API_LIST_STAKES             = 'http://{}/api/list_stakes'.format(BASE_IP)
-API_END_SESSIONS            = 'http://{}/api/end_sessions'.format(BASE_IP)
-API_HELP                    = 'http://{}/api/help'.format(BASE_IP)
-API_AHELP                   = 'http://{}/api/ahelp'.format(BASE_IP)
-API_CHECK_CREDIT_MEMBER     = 'http://{}/api/check_credit_member'.format(BASE_IP)
+API_TOP_UP_GROUP                = 'http://{}/api/top_up_group'.format(BASE_IP)
+API_CREATE_GROUP                = 'http://{}/api/create_group'.format(BASE_IP)
+API_UPDATE_GROUP                = 'http://{}/api/update_group'.format(BASE_IP)
+API_CREATE_SESSIONS             = 'http://{}/api/create_sessions'.format(BASE_IP)
+API_REGISTER_MEMBERS            = 'http://{}/api/register_members'.format(BASE_IP)
+API_CREATE_GAME                 = 'http://{}/api/create_game'.format(BASE_IP)
+API_START_GAME                  = 'http://{}/api/start_game'.format(BASE_IP)
+API_END_GAME                    = 'http://{}/api/end_game'.format(BASE_IP)
+API_STAKES                      = 'http://{}/api/stakes'.format(BASE_IP)
+API_CHECK_STAKES_MEMBERS        = 'http://{}/api/check_stakes_members'.format(BASE_IP)
+API_TOP_UP_AGENT                = 'http://{}/api/top_up_agent'.format(BASE_IP)
+API_TOP_UP_GROUP                = 'http://{}/api/top_up_group'.format(BASE_IP)
+API_LIST_STAKES                 = 'http://{}/api/list_stakes'.format(BASE_IP)
+API_END_SESSIONS                = 'http://{}/api/end_sessions'.format(BASE_IP)
+API_HELP                        = 'http://{}/api/help'.format(BASE_IP)
+API_AHELP                       = 'http://{}/api/ahelp'.format(BASE_IP)
+API_CHECK_CREDIT_MEMBER         = 'http://{}/api/check_credit_member'.format(BASE_IP)   
+API_GET_GROUP_INFO              = 'http://{}/api/get_group_from_private'.format(BASE_IP)  
+API_CHECK_MASTER_AGENT_NUMBER   = 'http://{}/api/check_master_agent_number'.format(BASE_IP)
 
 
 @signals.command_received.connect
 def handle(message):
     print(message.command+" "+message.predicate)
+    #Accept group command only
     if message.conversation != message.who :
         if message.command == "list":
             check_all_stakes_in_game(message)
@@ -46,38 +49,64 @@ def handle(message):
             member_registration(message)
         elif message.command == "b":
             user_place_a_stake(message)
-        # elif message.command == "ahelp":
-        #     ahelp(message)
         elif message.command == "help":
             help(message)
         elif message.command == "bal":
             check_credit_member(message)
         else:
             if message.command:
-                help(message)
+                check_master_agent(message)
     else:
-        if message.command == "tpagent":
-            print(message.command)
-        elif message.command == "credit":
-            top_up_group(message)
-        elif message.command == "group":
-            create_group(message)
-        elif message.command == "session":
-            create_sessions(message)
-        elif message.command == "game":
-            create_game(message)
-        elif message.command == "start":
-            start_game(message)
-        elif message.command == "end":
-            end_game(message)
-        elif message.command == "ahelp":
-            ahelp(message)
-        else:
-            if message.command:
-                help(message)
+        help(message)
 """
-Trivia Games Bot 
+Trivia Games Bot  
 """
+"""
+Check Master Agent
+"""
+def check_master_agent(message):
+    def get_info(result):
+        master_agent_ph = result.subjectOwnerJid.split("@")[0]
+        payload = {'wa_ph_number': master_agent_ph}
+        check_master_agent_post = requests.post(API_CHECK_MASTER_AGENT_NUMBER, data=payload)
+        check_master_agent_data = check_master_agent_post.json()
+
+        if 'error' in check_master_agent_data:
+            mac.send_message(check_master_agent_data['error']['response'], message.conversation)
+            return
+
+        if 'success' in check_master_agent_data:
+            # Agent Commands
+            if ( 'master_agent_ph_number' in check_master_agent_data['success']['response'] ):
+                agent_cmd(message)
+            return 
+
+    mac.get_group_name(message.conversation, message.who, callback=get_info)
+
+"""
+Agent Commands 
+"""
+def agent_cmd(message) :
+    if message.command == "tpagent":
+        print(message.command)
+    elif message.command == "credit":
+        top_up_group(message)
+    elif message.command == "group":
+        create_group(message)
+    elif message.command == "session":
+        create_sessions(message)
+    elif message.command == "game":
+        create_game(message)
+    elif message.command == "start":
+        start_game(message)
+    elif message.command == "end":
+        end_game(message)
+    elif message.command == "ahelp":
+        ahelp(message)
+    else:
+        if message.command:
+            help(message)
+    return
 """
 Main Function
 """
@@ -125,12 +154,14 @@ def create_group(message):
     create_group_post = requests.post(API_CREATE_GROUP, data=payload )
     create_group_data = create_group_post.json()
 
+    print(create_group_data)
+
     if 'error' in create_group_data:
-        mac.send_message(create_group_data['error']['response'], message.conversation)
+        mac.send_message(create_group_data['error']['response'], message.who)
         return
 
     if 'success' in create_group_data:
-        mac.send_message(create_group_data['success']['response'], message.conversation)
+        mac.send_message(create_group_data['success']['response'], message.who)
 
     mac.create_group(wa_ph_number, wa_group_name, message.conversation, callback=update_group)
 
@@ -159,7 +190,7 @@ def create_sessions(message):
     duration        = params[-1]
 
     if not wa_group_name:
-        mac.send_message(helper.INVALID_MESSAGE, message.conversation)
+        mac.send_message(helper.INVALID_MESSAGE, message.who)
         return
 
     if not duration :
@@ -170,13 +201,13 @@ def create_sessions(message):
     create_sessions_post = requests.post(API_CREATE_SESSIONS, data=payload )
     create_sessions_data = create_sessions_post.json()
 
-
+    print(create_sessions_data)
     if 'error' in create_sessions_data:
-        mac.send_message(create_sessions_data['error']['response'], message.conversation)
+        mac.send_message(create_sessions_data['error']['response'], message.who)
         return
 
     if 'success' in create_sessions_data:
-        mac.send_message(create_sessions_data['success']['response'], message.conversation)
+        mac.send_message(create_sessions_data['success']['response'], message.who)
 
 
 """
@@ -196,6 +227,8 @@ def create_game(message):
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number }
     create_game_post = requests.post(API_CREATE_GAME, data=payload )
     create_game_data = create_game_post.json()
+
+    print(create_game_data)
  
     if 'error' in create_game_data:
         mac.send_message(create_game_data['error']['response'], message.who)
@@ -225,6 +258,7 @@ def start_game(message):
     start_game_post = requests.post(API_START_GAME, data=payload )
     start_game_data = start_game_post.json()
 
+    print(start_game_data)
     if 'error' in start_game_data:
         mac.send_message(start_game_data['error']['response'], message.who)
         return
@@ -252,7 +286,6 @@ def member_registration(message):
         mac.send_message(member_registration_data['error']['response'], message.who)
         return
 
-    #changes
     if 'successgroup' in member_registration_data:
             mac.send_message(member_registration_data['successgroup']['response'], message.conversation)   
 
@@ -374,38 +407,20 @@ ACCESS  : AGENT
 def end_game(message):
     wa_ph_number    = message.who.split("@")[0]
     wa_group_name   = message.predicate
-    payload = { 'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
-    mac.send_message("Game will End in 10 seconds", wa_group_id)
-    time.sleep(10)
-    end_game_post = requests.post(API_END_GAME, data=payload )
-    end_game_data = end_game_post.json()
 
-    if 'error' in end_game_data:
-        mac.send_message(end_game_data['error']['response'], message.conversation)
+    groupname_payload = { 'wa_group_name': wa_group_name, "wa_ph_number" : wa_ph_number }
+    group_id_post = requests.post(API_GET_GROUP_INFO, data=groupname_payload )
+    group_id_data = group_id_post.json()
+
+    print(group_id_data)
+    
+    if 'success' not in group_id_data:
         return        
 
-    if 'success' in end_game_data:
-        player_lists = end_game_data['success']['response']
-        wa_group_id = end_game_data['success']['value']+"@g.us"
-        mac.send_message("Game is finish.", wa_group_id)
-        mac.send_message("Here's the list of winner: ",wa_group_id)
-        print(player_lists)
-        #if 'phone_number' in player_lists:
-        player_stakes_rows= [["phone_number", "stakes", "profit"]]
-        for player in player_lists:
-            player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
-            winner_stake_img = player["command_list_stakes"]
-        table = texttable.Texttable()
-        table.add_rows(player_stakes_rows)
-        mac.send_message(table.draw(), wa_group_id)
-        # else:
-        #     mac.send_message(player_lists, wa_group_id)
-
-        try:
-            send_image(wa_group_id,winner_stake_img)
-        except NameError:
-            print('Not found')
-        return  
+    mac.send_message("Game will End in 10 seconds", group_id_data['success']['response']['wa_group_id']+"@g.us")
+    t = threading.Thread(target=end_api_thread, args=(message,wa_group_name,wa_ph_number,))
+    t.start()
+    
 
 """
 Name    : Help
@@ -452,6 +467,37 @@ def ahelp(message):
 """
 Helper and other command
 """
+def end_api_thread(message,wa_group_name,wa_ph_number):
+    time.sleep(10)
+    payload = { 'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
+    end_game_post = requests.post(API_END_GAME, data=payload )
+    end_game_data = end_game_post.json()
+
+    if 'error' in end_game_data:
+        mac.send_message(end_game_data['error']['response'], message.conversation)
+        return        
+
+    if 'success' in end_game_data:
+        player_lists = end_game_data['success']['response']
+        wa_group_id = end_game_data['success']['value']+"@g.us"
+        mac.send_message("Game is finish.", wa_group_id)
+        mac.send_message("Here's the list of winner: ",wa_group_id)
+        print(player_lists)
+        #if 'phone_number' in player_lists:
+        player_stakes_rows= [["phone_number", "stakes", "profit"]]
+        for player in player_lists:
+            player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
+            winner_stake_img = player["command_list_stakes"]
+        table = texttable.Texttable()
+        table.add_rows(player_stakes_rows)
+        mac.send_message(table.draw(), wa_group_id)
+
+        try:
+            send_image(wa_group_id,winner_stake_img)
+        except NameError:
+            print('Not found')
+        return 
+
 def send_image(wa_group_id,animal):
     if animal != "":
         script_dir = sys.path[0]
