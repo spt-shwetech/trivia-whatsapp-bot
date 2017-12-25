@@ -157,11 +157,11 @@ def create_group(message):
     print(create_group_data)
 
     if 'error' in create_group_data:
-        mac.send_message(create_group_data['error']['response'], message.who)
+        mac.send_message(create_group_data['error']['response'], message.conversation)
         return
 
     if 'success' in create_group_data:
-        mac.send_message(create_group_data['success']['response'], message.who)
+        mac.send_message(create_group_data['success']['response'], message.conversation)
 
     mac.create_group(wa_ph_number, wa_group_name, message.conversation, callback=update_group)
 
@@ -203,11 +203,11 @@ def create_sessions(message):
 
     print(create_sessions_data)
     if 'error' in create_sessions_data:
-        mac.send_message(create_sessions_data['error']['response'], message.who)
+        mac.send_message(create_sessions_data['error']['response'], message.conversation)
         return
 
     if 'success' in create_sessions_data:
-        mac.send_message(create_sessions_data['success']['response'], message.who)
+        mac.send_message(create_sessions_data['success']['response'], message.conversation)
 
 
 """
@@ -231,11 +231,11 @@ def create_game(message):
     print(create_game_data)
  
     if 'error' in create_game_data:
-        mac.send_message(create_game_data['error']['response'], message.who)
+        mac.send_message(create_game_data['error']['response'], message.conversation)
         return
 
     if 'success' in create_game_data:
-            mac.send_message(create_game_data['success']['response'], message.who)   
+            mac.send_message(create_game_data['success']['response'], message.conversation)   
 
 
 """
@@ -260,14 +260,14 @@ def start_game(message):
 
     print(start_game_data)
     if 'error' in start_game_data:
-        mac.send_message(start_game_data['error']['response'], message.who)
+        mac.send_message(start_game_data['error']['response'], message.conversation)
         return
 
     if 'successgroup' in start_game_data:
             mac.send_message(start_game_data['successgroup']['response'], start_game_data['successgroup']['value']+"@g.us")   
 
     if 'successprivate' in start_game_data:
-        mac.send_message(start_game_data['successprivate']['response'], message.who)
+        mac.send_message(start_game_data['successprivate']['response'], message.conversation)
         return     
 """
 Name    : Member Registration 
@@ -455,11 +455,11 @@ def ahelp(message):
     ahelp_data = ahelp_post.json()
 
     if 'error' in ahelp_data:
-        mac.send_message(ahelp_data['error']['response'], message.conversation)
+        mac.send_message(ahelp_data['error']['response'], message.who)
         return        
 
     if 'success' in ahelp_data:
-        mac.send_message(ahelp_data['success']['response'], message.conversation)
+        mac.send_message(ahelp_data['success']['response'], message.who)
         return   
 
 
