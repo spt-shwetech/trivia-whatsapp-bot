@@ -58,11 +58,8 @@ def handle(message):
             if message.command:
                 check_master_agent(message)
     else:
-        if message.command == "group":
-            create_group(message)
-        else:
-            if message.command:
-                help(message)
+        if message.command:
+            help(message)
 """
 Trivia Games Bot  
 """
@@ -267,6 +264,7 @@ def start_game(message):
         duration = params[-1]
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'minutes_duration': duration }
+    print(payload)
     start_game_post = requests.post(API_START_GAME, data=payload )
     start_game_data = start_game_post.json()
 
