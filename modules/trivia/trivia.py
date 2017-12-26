@@ -41,6 +41,7 @@ def handle(message):
     print(message.command+" "+message.predicate)
     #Accept group command only
     if message.conversation != message.who :
+        print("group")
         if message.command == "list":
             check_all_stakes_in_game(message)
         elif message.command == "listbet":
@@ -57,42 +58,24 @@ def handle(message):
             if message.command:
                 check_master_agent(message)
     else:
-        help(message)
+        if message.command == "group":
+            create_group(message)
+        else:
+            if message.command:
+                help(message)
 """
 Trivia Games Bot  
 """
-"""
-Check Master Agent
-"""
-def check_master_agent(message):
-    def get_info(result):
-        master_agent_ph = result.subjectOwnerJid.split("@")[0]
-        payload = {'wa_ph_number': master_agent_ph}
-        check_master_agent_post = requests.post(API_CHECK_MASTER_AGENT_NUMBER, data=payload)
-        check_master_agent_data = check_master_agent_post.json()
-
-        if 'error' in check_master_agent_data:
-            mac.send_message(check_master_agent_data['error']['response'], message.conversation)
-            return
-
-        if 'success' in check_master_agent_data:
-            # Agent Commands
-            if ( 'master_agent_ph_number' in check_master_agent_data['success']['response'] ):
-                agent_cmd(message)
-            return 
-
-    mac.get_group_name(message.conversation, message.who, callback=get_info)
-
 """
 Agent Commands 
 """
 def agent_cmd(message) :
     if message.command == "tpagent":
         print(message.command)
+    elif message.command == "group":
+            create_group(message)
     elif message.command == "credit":
         top_up_group(message)
-    elif message.command == "group":
-        create_group(message)
     elif message.command == "session":
         create_sessions(message)
     elif message.command == "game":
@@ -107,6 +90,35 @@ def agent_cmd(message) :
         if message.command:
             help(message)
     return
+"""
+Check Master Agent
+"""
+def check_master_agent(message):
+    wa_group_id     = message.conversation.split("@")[0]
+    wa_ph_number    = message.who.split("@")[0]
+
+    payload = { "wa_group_id": wa_group_id, "wa_ph_number": wa_ph_number}
+    check_master_agent_post = requests.post(API_CHECK_MASTER_AGENT_NUMBER, data=payload)
+    check_master_agent_data = check_master_agent_post.json()
+
+    print(check_master_agent_data)
+    if 'error' in check_master_agent_data:
+        mac.send_message(check_master_agent_data['error']['response'], message.conversation)
+        return
+
+    if 'success' in check_master_agent_data:
+        if 'master_agent_ph_number' in check_master_agent_data['success']['response'] :
+            def get_info(result):
+                wa_ph_master_number = str(check_master_agent_data['success']['response']['master_agent_ph_number'])+"@s.whatsapp.net"
+                if wa_ph_master_number in result.participants:
+                    # Agent Commands
+                    agent_cmd(message)
+                else:
+                    mac.send_message('no master agent number phone in this group', message.conversation)
+
+            mac.get_group_name(message.conversation, message.who, callback=get_info)  
+            
+        return 
 """
 Main Function
 """
