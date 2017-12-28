@@ -212,7 +212,7 @@ def create_sessions(message):
 
     print(create_sessions_data)
     if 'error' in create_sessions_data:
-        mac.send_message(create_sessions_data['error']['response'], message.conversation)
+        mac.send_message(create_sessions_data['error']['response'], message.who)
         return
 
     if 'success' in create_sessions_data:
