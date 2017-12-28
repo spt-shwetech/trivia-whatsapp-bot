@@ -31,14 +31,28 @@ API_LIST_STAKES                 = 'http://{}/api/list_stakes'.format(BASE_IP)
 API_END_SESSIONS                = 'http://{}/api/end_sessions'.format(BASE_IP)
 API_HELP                        = 'http://{}/api/help'.format(BASE_IP)
 API_AHELP                       = 'http://{}/api/ahelp'.format(BASE_IP)
+API_MAHELP                      = 'http://{}/api/mahelp'.format(BASE_IP)
 API_CHECK_CREDIT_MEMBER         = 'http://{}/api/check_credit_member'.format(BASE_IP)   
 API_GET_GROUP_INFO              = 'http://{}/api/get_group_from_private'.format(BASE_IP)  
 API_CHECK_MASTER_AGENT_NUMBER   = 'http://{}/api/check_master_agent_number'.format(BASE_IP)
+API_MA_BAL                      = 'http://{}/api/check_credit_master_agent'.format(BASE_IP)
+API_A_BAL                       = 'http://{}/api/check_credit_agent'.format(BASE_IP)
 
 
 @signals.command_received.connect
 def handle(message):
     print(message.command+" "+message.predicate)
+
+    #Both Command
+    if message.command == "mahelp":
+        ma_help(message)
+        return
+    if message.command == "mabal":
+        ma_bal(message)
+        return
+    if message.command == "tpagent":
+        top_up_agent(message)
+        return
     #Accept group command only
     if message.conversation != message.who :
         print("group")
@@ -54,6 +68,8 @@ def handle(message):
             help(message)
         elif message.command == "bal":
             check_credit_member(message)
+        elif message.command == "image":
+            send_image("959403093452-1514460953@g.us","do")
         else:
             if message.command:
                 check_master_agent(message)
@@ -67,9 +83,7 @@ Trivia Games Bot
 Agent Commands 
 """
 def agent_cmd(message) :
-    if message.command == "tpagent":
-        print(message.command)
-    elif message.command == "group":
+    if message.command == "group":
             create_group(message)
     elif message.command == "credit":
         top_up_group(message)
@@ -81,44 +95,38 @@ def agent_cmd(message) :
         start_game(message)
     elif message.command == "end":
         end_game(message)
+    elif message.command == "autorun":
+        autorun(message)
     elif message.command == "ahelp":
-        ahelp(message)
+        a_help(message)
+    elif message.command == "abal":
+        a_bal(message)   
     else:
         if message.command:
             help(message)
     return
-"""
-Check Master Agent
-"""
-def check_master_agent(message):
-    wa_group_id     = message.conversation.split("@")[0]
-    wa_ph_number    = message.who.split("@")[0]
 
-    payload = { "wa_group_id": wa_group_id, "wa_ph_number": wa_ph_number}
-    check_master_agent_post = requests.post(API_CHECK_MASTER_AGENT_NUMBER, data=payload)
-    check_master_agent_data = check_master_agent_post.json()
-
-    print(check_master_agent_data)
-    if 'error' in check_master_agent_data:
-        mac.send_message(check_master_agent_data['error']['response'], message.conversation)
-        return
-
-    if 'success' in check_master_agent_data:
-        if 'master_agent_ph_number' in check_master_agent_data['success']['response'] :
-            def get_info(result):
-                wa_ph_master_number = str(check_master_agent_data['success']['response']['master_agent_ph_number'])+"@s.whatsapp.net"
-                if wa_ph_master_number in result.participants:
-                    # Agent Commands
-                    agent_cmd(message)
-                else:
-                    mac.send_message('no master agent number phone in this group', message.conversation)
-
-            mac.get_group_name(message.conversation, message.who, callback=get_info)  
-            
-        return 
 """
 Main Function
 """
+"""
+Name    : Top Up Agent
+CMD     : #tpagent [space] group_name [space] credit_groups
+ACCESS  : AGENT
+"""
+#Todo
+def top_up_agent(message):
+    wa_ph_number    = message.who.split("@")[0]
+    params          = message.predicate.split(" ")
+    wa_group_name   = ' '.join(params[:-1])
+    credit_groups   = params[-1]
+    if wa_group_name and credit_groups:
+        payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_groups': credit_groups }
+        _post = requests.post(API_TOP_UP_GROUP, data=payload )
+        _data = _post.json()
+
+        repsonse_handler(_data,message)
+        
 """
 Name    : Top Up Group
 CMD     : #credit [space] group_name [space] credit_groups
@@ -131,16 +139,10 @@ def top_up_group(message):
     credit_groups   = params[-1]
     if wa_group_name and credit_groups:
         payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_groups': credit_groups }
-        top_up_group_post = requests.post(API_TOP_UP_GROUP, data=payload )
-        top_up_group_data = top_up_group_post.json()
+        _post = requests.post(API_TOP_UP_GROUP, data=payload )
+        _data = _post.json()
 
-        if 'error' in top_up_group_data:
-            mac.send_message(top_up_group_data['error']['response'], message.conversation)
-            return
-
-        if 'success' in top_up_group_data:
-            mac.send_message(top_up_group_data['success']['response'], message.conversation)
-            return 
+        repsonse_handler(_data,message)
 
 """
 Name    : Create Group
@@ -158,19 +160,11 @@ def create_group(message):
     else :
         credit_group = params[-1]
 
-
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_group': credit_group }
-    create_group_post = requests.post(API_CREATE_GROUP, data=payload )
-    create_group_data = create_group_post.json()
+    _post = requests.post(API_CREATE_GROUP, data=payload )
+    _data = _post.json()
 
-    print(create_group_data)
-
-    if 'error' in create_group_data:
-        mac.send_message(create_group_data['error']['response'], message.conversation)
-        return
-
-    if 'success' in create_group_data:
-        mac.send_message(create_group_data['success']['response'], message.conversation)
+    repsonse_handler(_data,message)
 
     mac.create_group(wa_ph_number, wa_group_name, message.conversation, callback=update_group)
 
@@ -205,18 +199,11 @@ def create_sessions(message):
     if not duration :
         duration = "null"
 
-
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_member': credit_member, 'day_duration' : duration }
-    create_sessions_post = requests.post(API_CREATE_SESSIONS, data=payload )
-    create_sessions_data = create_sessions_post.json()
+    _post = requests.post(API_CREATE_SESSIONS, data=payload )
+    _data = _post.json()
 
-    print(create_sessions_data)
-    if 'error' in create_sessions_data:
-        mac.send_message(create_sessions_data['error']['response'], message.who)
-        return
-
-    if 'success' in create_sessions_data:
-        mac.send_message(create_sessions_data['success']['response'], message.conversation)
+    repsonse_handler(_data,message)
 
 
 """
@@ -234,18 +221,10 @@ def create_game(message):
         return
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number }
-    create_game_post = requests.post(API_CREATE_GAME, data=payload )
-    create_game_data = create_game_post.json()
+    _post = requests.post(API_CREATE_GAME, data=payload )
+    _data = _post.json()
 
-    print(create_game_data)
- 
-    if 'error' in create_game_data:
-        mac.send_message(create_game_data['error']['response'], message.conversation)
-        return
-
-    if 'success' in create_game_data:
-            mac.send_message(create_game_data['success']['response'], message.conversation)   
-
+    repsonse_handler(_data,message)
 
 """
 Name    : Start Game
@@ -397,7 +376,7 @@ def check_credit_member(message):
     check_credit_member_data = check_credit_member_post.json()
 
     if 'error' in check_credit_member_data:
-        mac.send_message(check_credit_member_data['error']['response'], message.conversation)
+        error_repsonse_handler(check_credit_member_data,message)
         return        
 
     if 'success' in check_credit_member_data:
@@ -431,6 +410,39 @@ def end_game(message):
     t = threading.Thread(target=end_api_thread, args=(message,wa_group_name,wa_ph_number,))
     t.start()
     
+def autorun(message):
+    #Todo
+    # wa_group_id     = message.conversation.split("@")[0]
+    wa_ph_number    = message.who.split("@")[0]
+    wa_group_name   = message.predicate
+    if wa_group_name != "":
+        while True:
+            #game 
+            print("game cmd")
+            payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number }
+            create_game_post = requests.post(API_CREATE_GAME, data=payload )
+            #time.sleep(0.5)
+            #start
+            print("start cmd")
+            payload1 = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'minutes_duration': 3 }
+            start_game_post = requests.post(API_START_GAME, data=payload1 )
+            start_game_data = start_game_post.json()
+
+            # if 'successgroup' in start_game_data:
+            #         mac.send_message(start_game_data['successgroup']['response'], start_game_data['successgroup']['value']+"@g.us")   
+            time.sleep(180)
+            #end
+            print("end cmd")
+            groupname_payload = { 'wa_group_name': wa_group_name, "wa_ph_number" : wa_ph_number }
+            group_id_post = requests.post(API_GET_GROUP_INFO, data=groupname_payload )
+            group_id_data = group_id_post.json()
+            print(group_id_data)
+            if 'success' not in group_id_data:
+                return        
+
+            mac.send_message("Game will End in 10 seconds", group_id_data['success']['response']['wa_group_id']+"@g.us")
+            t = threading.Thread(target=end_api_thread, args=(message,wa_group_name,wa_ph_number,))
+            t.start()
 
 """
 Name    : Help
@@ -441,47 +453,80 @@ def help(message):
     wa_group_id     = message.conversation.split("@")[0]
 
     payload = { "wa_group_id": wa_group_id }
-    help_post = requests.post(API_HELP, data=payload )
-    help_data = help_post.json()
+    _post = requests.post(API_HELP, data=payload )
+    _data = _post.json()
 
-    if 'error' in help_data:
-        mac.send_message(help_data['error']['response'], message.conversation)
-        return        
-
-    if 'success' in help_data:
-        mac.send_message(help_data['success']['response'], message.conversation)
-        return   
+    repsonse_handler(_data,message)
 
 """
 Name    : Agent Help
 CMD     : #ahelp
 ACCESS  : AGENT
 """
-def ahelp(message):
+def a_help(message):
     wa_ph_number    = message.who.split("@")[0]
 
     payload = { "wa_ph_number" : wa_ph_number}
-    ahelp_post = requests.post(API_AHELP, data=payload )
-    ahelp_data = ahelp_post.json()
+    _post = requests.post(API_AHELP, data=payload )
+    _data = _post.json()
 
-    if 'error' in ahelp_data:
-        mac.send_message(ahelp_data['error']['response'], message.who)
-        return        
+    repsonse_handler(_data,message)
 
-    if 'success' in ahelp_data:
-        mac.send_message(ahelp_data['success']['response'], message.who)
-        return   
+"""
+Name    : Agent bal
+CMD     : #abal
+ACCESS  : AGENT
+"""
+def a_bal(message):
+    wa_ph_number    = message.who.split("@")[0]
 
+    payload = { "wa_ph_number" : wa_ph_number}
+    _post = requests.post(API_A_BAL, data=payload )
+    _data = _post.json()
+
+    repsonse_handler(_data,message)
+
+"""
+Name    : MA Help
+CMD     : #ahelp
+ACCESS  : AGENT
+"""
+def ma_help(message):
+    wa_ph_number    = message.who.split("@")[0]
+
+    payload = { "wa_ph_number" : wa_ph_number}
+    _post = requests.post(API_MAHELP, data=payload )
+    _data = _post.json()
+
+    repsonse_handler(_data,message)
+
+"""
+Name    : MA bal
+CMD     : #mabal
+ACCESS  : MA
+"""
+def ma_bal(message):
+    wa_ph_number    = message.who.split("@")[0]
+
+    payload = { "wa_ph_number" : wa_ph_number}
+    _post = requests.post(API_MA_BAL, data=payload )
+    _data = _post.json()
+
+    repsonse_handler(_data,message)
 
 
 """
 Helper and other command
 """
+
+
 def end_api_thread(message,wa_group_name,wa_ph_number):
     time.sleep(10)
     payload = { 'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
     end_game_post = requests.post(API_END_GAME, data=payload )
     end_game_data = end_game_post.json()
+
+    print(end_game_data)
 
     if 'error' in end_game_data:
         mac.send_message(end_game_data['error']['response'], message.conversation)
@@ -489,9 +534,9 @@ def end_api_thread(message,wa_group_name,wa_ph_number):
 
     if 'success' in end_game_data:
         player_lists = end_game_data['success']['response']
-        wa_group_id = end_game_data['success']['value']+"@g.us"
-        mac.send_message("Game is finish.", wa_group_id)
-        mac.send_message("Here's the list of winner: ",wa_group_id)
+        _wa_group_id = end_game_data['success']['value']+"@g.us"
+        mac.send_message("Game is finish.", _wa_group_id)
+        mac.send_message("Here's the list of winner: ",_wa_group_id)
         print(player_lists)
         #if 'phone_number' in player_lists:
         player_stakes_rows= [["phone_number", "stakes", "profit"]]
@@ -500,19 +545,25 @@ def end_api_thread(message,wa_group_name,wa_ph_number):
             winner_stake_img = player["command_list_stakes"]
         table = texttable.Texttable()
         table.add_rows(player_stakes_rows)
-        mac.send_message(table.draw(), wa_group_id)
+        mac.send_message(table.draw(), _wa_group_id)
 
         try:
-            send_image(wa_group_id,winner_stake_img)
+            send_image(_wa_group_id,winner_stake_img)
+            # t = threading.Thread(target=send_image, args=(_wa_group_id,winner_stake_img,))
+            # t.start()
         except NameError:
             print('Not found')
         return 
 
 def send_image(wa_group_id,animal):
     if animal != "":
+        print(animal)
         script_dir = sys.path[0]
         img_file = os.path.join(script_dir, 'modules/trivia/img/{}.png'.format(animal))
+        print(img_file)
+        print(wa_group_id)
         mac.send_image(img_file, wa_group_id) 
+        
 
 def check_group(message, callback=None):
     """
@@ -538,3 +589,58 @@ def ambigous(text, message):
     ambigous_text = 'Your message seem ambigous. here is your error: \n {}'.format(text)
     mac.send_message(ambigous_text, message.conversation)
 
+def error_repsonse_handler(data,message):
+    if data['error']['target'] != 'private' : 
+        mac.send_message(data['error']['response'], data['error']['value']+"@g.us")
+        return
+    else :
+        mac.send_message(data['error']['response'], message.who)
+        return
+
+def success_repsonse_handler(data,message):
+    if data['success']['target'] != 'private' : 
+        mac.send_message(data['success']['response'], data['success']['value']+"@g.us")
+        return
+    else :
+        mac.send_message(data['success']['response'], message.who)
+        return
+
+def repsonse_handler(data,message):
+    print(data)
+    if 'error' in data:
+        error_repsonse_handler(data,message)
+        return        
+    if 'success' in data:
+        success_repsonse_handler(data,message)
+        return
+    return   
+
+"""
+Check Master Agent
+"""
+def check_master_agent(message):
+    wa_group_id     = message.conversation.split("@")[0]
+    wa_ph_number    = message.who.split("@")[0]
+
+    payload = { "wa_group_id": wa_group_id, "wa_ph_number": wa_ph_number}
+    check_master_agent_post = requests.post(API_CHECK_MASTER_AGENT_NUMBER, data=payload)
+    check_master_agent_data = check_master_agent_post.json()
+
+    print(check_master_agent_data)
+    if 'error' in check_master_agent_data:
+        mac.send_message(check_master_agent_data['error']['response'], message.conversation)
+        return
+
+    if 'success' in check_master_agent_data:
+        if 'master_agent_ph_number' in check_master_agent_data['success']['response'] :
+            def get_info(result):
+                wa_ph_master_number = str(check_master_agent_data['success']['response']['master_agent_ph_number'])+"@s.whatsapp.net"
+                if wa_ph_master_number in result.participants:
+                    # Agent Commands
+                    agent_cmd(message)
+                else:
+                    mac.send_message('no master agent number phone in this group', message.conversation)
+
+            mac.get_group_name(message.conversation, message.who, callback=get_info)  
+            
+        return 

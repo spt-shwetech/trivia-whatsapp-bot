@@ -91,22 +91,6 @@ The project is not submoduling yowsup now due to a lot of the modifications made
 
 
 
-here is the test case command.
-```
-#create groupname
-In group
-For Host
-#set 1000
-#start 80
 
-invite the member
-For Member
-#register
-#stake ji 100
-
-For Host
-#end
-#yes
-```
 
 * * * * * sudo sh /{YOUR_PATH}/start.sh
