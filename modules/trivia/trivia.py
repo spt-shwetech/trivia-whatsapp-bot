@@ -69,6 +69,8 @@ def handle(message):
             help(message)
         elif message.command == "bal":
             check_credit_member(message)
+        elif message.command == "tpmember":
+            top_up_member(message)
         elif message.command == "image":
             send_image("959403093452-1514460953@g.us","do")
         else:
