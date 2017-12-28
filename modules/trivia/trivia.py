@@ -26,6 +26,7 @@ API_END_GAME                    = 'http://{}/api/end_game'.format(BASE_IP)
 API_STAKES                      = 'http://{}/api/stakes'.format(BASE_IP)
 API_CHECK_STAKES_MEMBERS        = 'http://{}/api/check_stakes_members'.format(BASE_IP)
 API_TOP_UP_AGENT                = 'http://{}/api/top_up_agent'.format(BASE_IP)
+API_TOP_UP_MEMBER               = 'http://{}/api/top_up_member'.format(BASE_IP)
 API_TOP_UP_GROUP                = 'http://{}/api/top_up_group'.format(BASE_IP)
 API_LIST_STAKES                 = 'http://{}/api/list_stakes'.format(BASE_IP)
 API_END_SESSIONS                = 'http://{}/api/end_sessions'.format(BASE_IP)
@@ -111,18 +112,36 @@ Main Function
 """
 """
 Name    : Top Up Agent
-CMD     : #tpagent [space] group_name [space] credit_groups
+CMD     : #tpagent [space] wa_ph_number_agent [space] credit_top_up
 ACCESS  : AGENT
 """
-#Todo
 def top_up_agent(message):
-    wa_ph_number    = message.who.split("@")[0]
-    params          = message.predicate.split(" ")
-    wa_group_name   = ' '.join(params[:-1])
-    credit_groups   = params[-1]
-    if wa_group_name and credit_groups:
-        payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_groups': credit_groups }
-        _post = requests.post(API_TOP_UP_GROUP, data=payload )
+    wa_ph_number_master_agent   = message.who.split("@")[0]
+    params                      = message.predicate.split(" ")
+    wa_ph_number_agent          = params[0]
+    credit_top_up               = params[1]
+
+    if wa_ph_number_agent and credit_top_up :
+        payload = { "wa_ph_number_master_agent": wa_ph_number_master_agent, "wa_ph_number_agent": wa_ph_number_agent, 'credit_top_up': credit_top_up }
+        _post = requests.post(API_TOP_UP_AGENT, data=payload )
+        _data = _post.json()
+
+        repsonse_handler(_data,message)
+
+"""
+Name    : Top Up Member
+CMD     : #tpmember [space] member phone number [space] credit
+ACCESS  : AGENT
+"""
+def top_up_member(message):
+    wa_ph_number                = message.who.split("@")[0]
+    params                      = message.predicate.split(" ")
+    wa_member_ph_number         = params[0]
+    credit_top_up               = params[1]
+
+    if wa_member_ph_number and credit_top_up :
+        payload = { "wa_ph_number": wa_ph_number, "wa_member_ph_number": wa_member_ph_number, 'credit_top_up': credit_top_up }
+        _post = requests.post(API_TOP_UP_MEMBER, data=payload )
         _data = _post.json()
 
         repsonse_handler(_data,message)
@@ -244,20 +263,11 @@ def start_game(message):
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'minutes_duration': duration }
     print(payload)
-    start_game_post = requests.post(API_START_GAME, data=payload )
-    start_game_data = start_game_post.json()
+    _post = requests.post(API_START_GAME, data=payload )
+    _data = _post.json()
 
-    print(start_game_data)
-    if 'error' in start_game_data:
-        mac.send_message(start_game_data['error']['response'], message.conversation)
-        return
+    repsonse_handler(_data,message)
 
-    if 'successgroup' in start_game_data:
-            mac.send_message(start_game_data['successgroup']['response'], start_game_data['successgroup']['value']+"@g.us")   
-
-    if 'successprivate' in start_game_data:
-        mac.send_message(start_game_data['successprivate']['response'], message.conversation)
-        return     
 """
 Name    : Member Registration 
 CMD     : #reg
@@ -268,19 +278,11 @@ def member_registration(message):
     wa_ph_number    = message.who.split("@")[0]
 
     payload = { "wa_group_id": wa_group_id, "wa_ph_number": wa_ph_number}
-    member_registration_post = requests.post(API_REGISTER_MEMBERS, data=payload )
-    member_registration_data = member_registration_post.json()
+    _post = requests.post(API_REGISTER_MEMBERS, data=payload )
+    _data = _post.json()
 
-    if 'error' in member_registration_data:
-        mac.send_message(member_registration_data['error']['response'], message.who)
-        return
+    repsonse_handler(_data,message)
 
-    if 'successgroup' in member_registration_data:
-            mac.send_message(member_registration_data['successgroup']['response'], message.conversation)   
-
-    if 'successprivate' in member_registration_data:
-        mac.send_message(member_registration_data['successprivate']['response'], message.who)
-        return  
 """
 Name    : User Place A Stake
 CMD     : #b [space] list_stakes_name [space] stake_amount
@@ -292,21 +294,13 @@ def user_place_a_stake(message):
     params          = message.predicate.split(" ")
     stake           = params[0]
     value           = params[1]
+
     if stake and value :
         payload = { "wa_group_id": wa_group_id, "wa_ph_number": wa_ph_number, 'stake': stake, 'value': value}
-        user_place_a_stake_post = requests.post(API_STAKES, data=payload )
-        user_place_a_stake_data = user_place_a_stake_post.json()
+        _post = requests.post(API_STAKES, data=payload )
+        _data = _post.json()
 
-        if 'error' in user_place_a_stake_data:
-            mac.send_message(user_place_a_stake_data['error']['response'], message.who)
-            return    
-
-        if 'successgroup' in user_place_a_stake_data:
-            mac.send_message(user_place_a_stake_data['successgroup']['response'], message.conversation)   
-
-        if 'successprivate' in user_place_a_stake_data:
-            mac.send_message(user_place_a_stake_data['successprivate']['response'], message.who)
-            return        
+        repsonse_handler(_data,message)  
 
 """
 Name    : Check All Stakes In Game
@@ -488,7 +482,7 @@ def a_bal(message):
 
 """
 Name    : MA Help
-CMD     : #ahelp
+CMD     : #mahelp
 ACCESS  : AGENT
 """
 def ma_help(message):
@@ -607,9 +601,17 @@ def success_repsonse_handler(data,message):
 
 def repsonse_handler(data,message):
     print(data)
+
     if 'error' in data:
         error_repsonse_handler(data,message)
-        return        
+        return  
+
+    if 'successgroup' in data:
+        mac.send_message(data['successgroup']['response'], data['successgroup']['value']+"@g.us")   
+
+    if 'successprivate' in data:
+        mac.send_message(data['successprivate']['response'], message.conversation)
+
     if 'success' in data:
         success_repsonse_handler(data,message)
         return
@@ -619,6 +621,7 @@ def repsonse_handler(data,message):
 Check Master Agent
 """
 def check_master_agent(message):
+
     wa_group_id     = message.conversation.split("@")[0]
     wa_ph_number    = message.who.split("@")[0]
 
