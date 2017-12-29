@@ -15,7 +15,8 @@ ALLANIMALS = set(ANIMALS)
 TEMP = {}
 
 #List API TRIVIA
-API_TOP_UP_GROUP                = 'http://{}/api/top_up_group'.format(BASE_IP)
+
+API_CREATE_AGENT                = 'http://{}/api/create_agent'.format(BASE_IP)
 API_CREATE_GROUP                = 'http://{}/api/create_group'.format(BASE_IP)
 API_UPDATE_GROUP                = 'http://{}/api/update_group'.format(BASE_IP)
 API_CREATE_SESSIONS             = 'http://{}/api/create_sessions'.format(BASE_IP)
@@ -53,6 +54,9 @@ def handle(message):
         return
     if message.command == "tpagent":
         top_up_agent(message)
+        return
+    if message.command == "areg":
+        agent_reg(message)
         return
     #Accept group command only
     if message.conversation != message.who :
@@ -112,6 +116,25 @@ def agent_cmd(message) :
 """
 Main Function
 """
+"""
+Name    : Agent Registration
+CMD     : #areg [space] phone number [space] email [space] credit
+ACCESS  : Master
+"""
+def agent_reg(message):
+    wa_ph_number                = message.who.split("@")[0]
+    params                      = message.predicate.split(" ")
+    wa_ph_number_agent          = params[0]
+    email_agent                 = params[1]
+    credit_agent                = params[2]
+
+    if wa_ph_number_agent and email_agent and credit_agent :
+        payload = { "wa_ph_number": wa_ph_number, "wa_ph_number_agent": wa_ph_number_agent, 'email_agent': email_agent, 'credit_agent': credit_agent  }
+        _post = requests.post(API_CREATE_AGENT, data=payload )
+        _data = _post.json()
+
+        repsonse_handler(_data,message)
+
 """
 Name    : Top Up Agent
 CMD     : #tpagent [space] wa_ph_number_agent [space] credit_top_up
@@ -318,7 +341,7 @@ def check_all_stakes_in_game(message):
     check_all_stakes_in_game_data = check_all_stakes_in_game_post.json()
 
     if 'error' in check_all_stakes_in_game_data:
-        mac.send_message(check_all_stakes_in_game_data['error']['response'], message.conversation)
+        error_repsonse_handler(check_all_stakes_in_game_data,message)
         return        
 
     if 'success' in check_all_stakes_in_game_data:
@@ -345,7 +368,7 @@ def check_all_list_stakes(message):
     check_all_list_stakes_data = check_all_list_stakes_post.json()
 
     if 'error' in check_all_list_stakes_data:
-        mac.send_message(check_all_list_stakes_data['error']['response'], message.conversation)
+        error_repsonse_handler(check_all_list_stakes_data,message)
         return    
 
     if 'success' in check_all_list_stakes_data:
@@ -413,33 +436,37 @@ def autorun(message):
     wa_group_name   = message.predicate
     if wa_group_name != "":
         while True:
-            #game 
+        #game 
             print("game cmd")
-            payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number }
-            create_game_post = requests.post(API_CREATE_GAME, data=payload )
+            game_payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number }
+            create_game_post = requests.post(API_CREATE_GAME, data=game_payload )
             #time.sleep(0.5)
             #start
             print("start cmd")
-            payload1 = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'minutes_duration': 3 }
-            start_game_post = requests.post(API_START_GAME, data=payload1 )
+            start_payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'minutes_duration': 3 }
+            start_game_post = requests.post(API_START_GAME, data=start_payload )
             start_game_data = start_game_post.json()
 
             # if 'successgroup' in start_game_data:
             #         mac.send_message(start_game_data['successgroup']['response'], start_game_data['successgroup']['value']+"@g.us")   
-            time.sleep(180)
+            time.sleep(10)
+            #time.sleep(180)
             #end
             print("end cmd")
-            groupname_payload = { 'wa_group_name': wa_group_name, "wa_ph_number" : wa_ph_number }
-            group_id_post = requests.post(API_GET_GROUP_INFO, data=groupname_payload )
+            end_payload = { "wa_group_name" : wa_group_name, "wa_ph_number" : wa_ph_number }
+            group_id_post = requests.post(API_GET_GROUP_INFO, data=end_payload )
             group_id_data = group_id_post.json()
-            print(group_id_data)
-            if 'success' not in group_id_data:
-                return        
+            print(group_id_data)  
 
             mac.send_message("Game will End in 10 seconds", group_id_data['success']['response']['wa_group_id']+"@g.us")
             t = threading.Thread(target=end_api_thread, args=(message,wa_group_name,wa_ph_number,))
             t.start()
 
+            print(end_api_thread(message,wa_group_name,wa_ph_number) )
+            time.sleep(900)
+            # if end_api_thread(message,wa_group_name,wa_ph_number) :
+            #     continue
+        
 """
 Name    : Help
 CMD     : #help
@@ -493,7 +520,7 @@ def ma_help(message):
     payload = { "wa_ph_number" : wa_ph_number}
     _post = requests.post(API_MAHELP, data=payload )
     _data = _post.json()
-
+    print(_data)
     repsonse_handler(_data,message)
 
 """
@@ -522,18 +549,17 @@ def end_api_thread(message,wa_group_name,wa_ph_number):
     end_game_post = requests.post(API_END_GAME, data=payload )
     end_game_data = end_game_post.json()
 
-    print(end_game_data)
-
     if 'error' in end_game_data:
-        mac.send_message(end_game_data['error']['response'], message.conversation)
+        error_repsonse_handler(end_game_data,message)
         return        
 
     if 'success' in end_game_data:
         player_lists = end_game_data['success']['response']
         _wa_group_id = end_game_data['success']['value']+"@g.us"
         mac.send_message("Game is finish.", _wa_group_id)
+        #time.sleep(1)
         mac.send_message("Here's the list of winner: ",_wa_group_id)
-        print(player_lists)
+        #time.sleep(1)
         #if 'phone_number' in player_lists:
         player_stakes_rows= [["phone_number", "stakes", "profit"]]
         for player in player_lists:
@@ -541,15 +567,10 @@ def end_api_thread(message,wa_group_name,wa_ph_number):
             winner_stake_img = player["command_list_stakes"]
         table = texttable.Texttable()
         table.add_rows(player_stakes_rows)
-        mac.send_message(table.draw(), _wa_group_id)
-
-        try:
+        if mac.send_message(table.draw(), _wa_group_id) == "None":
+            mac.send_message(table.draw(), _wa_group_id)
+        if send_image(_wa_group_id,winner_stake_img) == "None":
             send_image(_wa_group_id,winner_stake_img)
-            # t = threading.Thread(target=send_image, args=(_wa_group_id,winner_stake_img,))
-            # t.start()
-        except NameError:
-            print('Not found')
-        return 
 
 def send_image(wa_group_id,animal):
     if animal != "":
@@ -559,8 +580,8 @@ def send_image(wa_group_id,animal):
         print(img_file)
         print(wa_group_id)
         mac.send_image(img_file, wa_group_id) 
+        return
         
-
 def check_group(message, callback=None):
     """
     #TODO [UNUSED]
@@ -633,7 +654,7 @@ def check_master_agent(message):
 
     print(check_master_agent_data)
     if 'error' in check_master_agent_data:
-        mac.send_message(check_master_agent_data['error']['response'], message.conversation)
+        error_repsonse_handler(check_master_agent_data,message)
         return
 
     if 'success' in check_master_agent_data:
