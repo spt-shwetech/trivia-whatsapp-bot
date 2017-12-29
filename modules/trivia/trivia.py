@@ -2,6 +2,7 @@ from app.mac import mac, signals
 from modules.trivia import helper
 import requests
 import texttable
+from tabulate import tabulate
 import re
 import sys, os
 from datetime import datetime
@@ -197,21 +198,19 @@ def create_group(message):
     wa_ph_number    = message.who.split("@")[0]
     params          = message.predicate.split(" ")
     wa_group_name   = ' '.join(params[:-1])
+    credit_group    = params[-1]
 
-    if not wa_group_name:
-        wa_group_name   = params[0]
-        credit_group = 'null'
-    else :
-        credit_group = params[-1]
+    if wa_group_name and credit_group:
 
-    payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_group': credit_group }
-    _post = requests.post(API_CREATE_GROUP, data=payload )
-    _data = _post.json()
+        payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'credit_group': credit_group }
+        _post = requests.post(API_CREATE_GROUP, data=payload )
+        _data = _post.json()
 
-    repsonse_handler(_data,message)
+        repsonse_handler(_data,message)
 
-    mac.create_group(wa_ph_number, wa_group_name, message.conversation, callback=update_group)
-
+        mac.create_group(wa_ph_number, wa_group_name, message.conversation, callback=update_group)
+    else : 
+        a_help(message)
 
 def update_group(groupId, group_name, ph_number, conversation):
     who = ph_number+'@s.whatsapp.net'
@@ -255,27 +254,30 @@ Name    : Create Game
 CMD     : #game [space] group_name
 ACCESS  : AGENT
 """
-def create_game(message):
+def create_game(message, is_auto=False):
     wa_ph_number    = message.who.split("@")[0]
     params          = message.predicate.split(" ")
     wa_group_name   = message.predicate
 
     if not wa_group_name:
         mac.send_message(helper.INVALID_MESSAGE, message.conversation)
-        return
+        # indicate not success running
+        return 0
 
     payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number }
     _post = requests.post(API_CREATE_GAME, data=payload )
     _data = _post.json()
 
     repsonse_handler(_data,message)
+    #indicate success running
+    return 1
 
 """
 Name    : Start Game
 CMD     : #start [space] group_name [space] duration (in minutes )
 ACCESS  : AGENT
 """
-def start_game(message):
+def start_game(message, is_auto=False):
     wa_ph_number    = message.who.split("@")[0]
     params          = message.predicate.split(" ")
     wa_group_name   = ' '.join(params[:-1])
@@ -291,7 +293,18 @@ def start_game(message):
     _post = requests.post(API_START_GAME, data=payload )
     _data = _post.json()
 
-    repsonse_handler(_data,message)
+    if 'error' in _data:
+        error_repsonse_handler(_data,message)
+        # indicate not success running
+        return 0
+
+    if 'successgroup' in _data and not is_auto:
+            mac.send_message(_data['successgroup']['response'], _data['successgroup']['value']+"@g.us")   
+
+    if 'successprivate' in _data:
+        mac.send_message(_data['successprivate']['response'], message.conversation)
+        # indicate success running
+        return 1
 
 """
 Name    : Member Registration 
@@ -346,12 +359,19 @@ def check_all_stakes_in_game(message):
 
     if 'success' in check_all_stakes_in_game_data:
         player_lists = check_all_stakes_in_game_data['success']['response']['check_stakes_members']
-        player_stakes_rows= [["phone_number", "stakes", "value"]]
+        # player_stakes_rows= [["phone_number", "stakes", "value"]]
+        # for player in player_lists:
+        #     player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["value_stakes"]])
+        # table = texttable.Texttable()
+        # table.add_rows(player_stakes_rows)
+        # mac.send_message(table.draw(), message.conversation)
+        player_stakes_rows= [["----------------------", "", ""]]
+        player_stakes_rows.append(["phone_number", "stakes", "value"])
+        player_stakes_rows.append(["----------------------"])
         for player in player_lists:
             player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["value_stakes"]])
-        table = texttable.Texttable()
-        table.add_rows(player_stakes_rows)
-        mac.send_message(table.draw(), message.conversation)
+        player_stakes_rows.append(["----------------------"])
+        mac.send_message(tabulate(player_stakes_rows, tablefmt="plain"),message.conversation)
         return   
 
 """
@@ -373,12 +393,21 @@ def check_all_list_stakes(message):
 
     if 'success' in check_all_list_stakes_data:
         player_lists = check_all_list_stakes_data['success']['response']
-        player_stakes_rows= [["Command", "Name Stakes"]]
+        # player_stakes_rows= [["Command", "Name Stakes"]]
+        # for player in player_lists:
+        #     player_stakes_rows.append([player["command_list_stakes"],player["name_list_stakes"]])
+        # table = texttable.Texttable()
+        # table.add_rows(player_stakes_rows)
+        # mac.send_message(table.draw(), message.conversation)
+        player_stakes_rows= [["----------------------", ""]]
+        player_stakes_rows.append([["Command", "Name Stakes"]])
+        player_stakes_rows.append(["----------------------"])
         for player in player_lists:
             player_stakes_rows.append([player["command_list_stakes"],player["name_list_stakes"]])
-        table = texttable.Texttable()
-        table.add_rows(player_stakes_rows)
-        mac.send_message(table.draw(), message.conversation)
+        player_stakes_rows.append(["----------------------"])
+        mac.send_message(tabulate(player_stakes_rows, tablefmt="plain"),message.conversation)
+        #print(tabulate(player_stakes_rows))
+        mac.send_message(tabulate(player_stakes_rows), message.conversation)
         return  
 
 """
@@ -412,6 +441,61 @@ Name    : End Game
 CMD     : #end [space] group_name
 ACCESS  : AGENT
 """
+def auto_end_game(message, middle_callback=None):
+    def end_api_callback():
+        wa_ph_number = message.who.split("@")[0]
+        wa_group_name = message.predicate
+        payload = {'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
+        end_game_post = requests.post(API_END_GAME, data=payload)
+        end_game_data = end_game_post.json()
+
+        print(end_game_data)
+
+        if 'error' in end_game_data:
+            mac.send_message(end_game_data['error']['response'], message.conversation)
+            return
+
+        if 'success' in end_game_data:
+            player_lists = end_game_data['success']['response']
+            _wa_group_id = end_game_data['success']['value'] + "@g.us"
+            mac.send_message_to("Game is finish.", _wa_group_id)
+            mac.send_message_to("Here's the list of winner: ", _wa_group_id)
+
+            # if 'phone_number' in player_lists:
+            player_stakes_rows = [["phone_number", "stakes", "profit"]]
+            for player in player_lists:
+                player_stakes_rows.append([player["phone_number"], player["name_list_stakes"], player["profit"]])
+                winner_stake_img = player["command_list_stakes"]
+            table = texttable.Texttable()
+            table.add_rows(player_stakes_rows)
+
+            mac.send_message_to(table.draw(), _wa_group_id)
+
+            try:
+                send_image(_wa_group_id, winner_stake_img)
+                # t = threading.Thread(target=send_image, args=(_wa_group_id,winner_stake_img,))
+                # t.start()
+            except NameError:
+                print('Not found')
+            if middle_callback:
+                middle_callback()
+            return
+
+    wa_ph_number    = message.who.split("@")[0]
+    wa_group_name   = message.predicate
+
+    groupname_payload = { 'wa_group_name': wa_group_name, "wa_ph_number" : wa_ph_number }
+    group_id_post = requests.post(API_GET_GROUP_INFO, data=groupname_payload )
+    group_id_data = group_id_post.json()
+
+    print(group_id_data)
+
+    if 'success' not in group_id_data:
+        return
+
+    mac.send_message_to("Game will End in 10 seconds", group_id_data['success']['response']['wa_group_id']+"@g.us")
+    countdown(10, end_api_callback)
+
 def end_game(message):
     wa_ph_number    = message.who.split("@")[0]
     wa_group_name   = message.predicate
@@ -434,39 +518,39 @@ def autorun(message):
     # wa_group_id     = message.conversation.split("@")[0]
     wa_ph_number    = message.who.split("@")[0]
     wa_group_name   = message.predicate
-    if wa_group_name != "":
-        while True:
-        #game 
-            print("game cmd")
-            game_payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number }
-            create_game_post = requests.post(API_CREATE_GAME, data=game_payload )
-            #time.sleep(0.5)
-            #start
-            print("start cmd")
-            start_payload = { "wa_group_name": wa_group_name, "wa_ph_number": wa_ph_number, 'minutes_duration': 3 }
-            start_game_post = requests.post(API_START_GAME, data=start_payload )
-            start_game_data = start_game_post.json()
+    is_have_predicate = message.predicate and len(message.predicate) > 1
 
-            # if 'successgroup' in start_game_data:
-            #         mac.send_message(start_game_data['successgroup']['response'], start_game_data['successgroup']['value']+"@g.us")   
-            time.sleep(10)
-            #time.sleep(180)
-            #end
-            print("end cmd")
-            end_payload = { "wa_group_name" : wa_group_name, "wa_ph_number" : wa_ph_number }
-            group_id_post = requests.post(API_GET_GROUP_INFO, data=end_payload )
-            group_id_data = group_id_post.json()
-            print(group_id_data)  
+    if not is_have_predicate:
+        mac.send_message("You Must specify group name", message.conversation)
+        return
 
-            mac.send_message("Game will End in 10 seconds", group_id_data['success']['response']['wa_group_id']+"@g.us")
-            t = threading.Thread(target=end_api_thread, args=(message,wa_group_name,wa_ph_number,))
-            t.start()
+    is_only_one_word_predicate = len(message.predicate.split(" ")) == 1
+    if not is_only_one_word_predicate :
+        mac.send_message("You must specify group name", message.conversation)
+        return
 
-            print(end_api_thread(message,wa_group_name,wa_ph_number) )
-            time.sleep(900)
-            # if end_api_thread(message,wa_group_name,wa_ph_number) :
-            #     continue
-        
+
+    create_game_code = create_game(message)
+    start_game_code = start_game(message)
+
+    #if not have success code in create game and start game
+    if create_game_code == 0 or start_game_code == 0:
+        return
+
+    def end_game_middle_callback():
+        create_game(message)
+        start_game(message, is_auto=True)
+
+    def start_timer_callback():
+        mac.send_message('INFO: after this game end, the game will be started again in one minute', message.conversation)
+        end_game(message, end_game_middle_callback)
+        time.sleep(5)
+
+    def ended_callback():
+        auto_end_game(message)
+        mac.send_message('woooow auto ruun. run for your life', message.conversation)
+
+    countdown(86400, ended_callback, modulo=240, timer_callback=start_timer_callback, timer_delayed_callback=end_game_middle_callback)
 """
 Name    : Help
 CMD     : #help
@@ -540,6 +624,26 @@ def ma_bal(message):
 """
 Helper and other command
 """
+def countdown(timer, end_callback, modulo=None, timer_callback=None, timer_delayed_callback=None):
+    def create_thread():
+        countdown_count = int(timer)
+        while True:
+            print("sleep sek".format(countdown))
+            time.sleep(1)
+            if timer_callback and modulo:
+                if countdown_count % modulo == 0 and countdown_count != timer:
+                    timer_callback()
+                    countdown(60, end_callback=timer_delayed_callback)
+            countdown_count -= 1
+            print("Waiting for {}".format(countdown_count))
+            if countdown_count == 0:
+                print("Tired of waiting")
+                end_callback()
+                return
+    thr = threading.Thread(target=create_thread)
+    thr.start()
+    return
+    
 def end_api_thread(message,wa_group_name,wa_ph_number):
     time.sleep(10)
     payload = { 'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
