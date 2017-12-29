@@ -537,12 +537,9 @@ def ma_bal(message):
 
     repsonse_handler(_data,message)
 
-
 """
 Helper and other command
 """
-
-
 def end_api_thread(message,wa_group_name,wa_ph_number):
     time.sleep(10)
     payload = { 'wa_group_name': wa_group_name, "wa_ph_number": wa_ph_number}
@@ -550,16 +547,15 @@ def end_api_thread(message,wa_group_name,wa_ph_number):
     end_game_data = end_game_post.json()
 
     if 'error' in end_game_data:
-        error_repsonse_handler(end_game_data,message)
+        mac.send_message(end_game_data['error']['response'], message.conversation)
         return        
 
     if 'success' in end_game_data:
         player_lists = end_game_data['success']['response']
-        _wa_group_id = end_game_data['success']['value']+"@g.us"
-        mac.send_message("Game is finish.", _wa_group_id)
-        #time.sleep(1)
-        mac.send_message("Here's the list of winner: ",_wa_group_id)
-        #time.sleep(1)
+        wa_group_id = end_game_data['success']['value']+"@g.us"
+        mac.send_message("Game is finish.", wa_group_id)
+        mac.send_message("Here's the list of winner: ",wa_group_id)
+        print(player_lists)
         #if 'phone_number' in player_lists:
         player_stakes_rows= [["phone_number", "stakes", "profit"]]
         for player in player_lists:
@@ -567,10 +563,13 @@ def end_api_thread(message,wa_group_name,wa_ph_number):
             winner_stake_img = player["command_list_stakes"]
         table = texttable.Texttable()
         table.add_rows(player_stakes_rows)
-        if mac.send_message(table.draw(), _wa_group_id) == "None":
-            mac.send_message(table.draw(), _wa_group_id)
-        if send_image(_wa_group_id,winner_stake_img) == "None":
-            send_image(_wa_group_id,winner_stake_img)
+        mac.send_message(table.draw(), wa_group_id)
+
+        try:
+            send_image(wa_group_id,winner_stake_img)
+        except NameError:
+            print('Not found')
+        return 
 
 def send_image(wa_group_id,animal):
     if animal != "":
